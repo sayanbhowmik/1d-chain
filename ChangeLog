@@ -5,6 +5,12 @@
 
 --------------
 December 12, 2025
+Name: Sayan Bhowmik
+Changes: 
+1. Fix self energy evaluation and force correction
+
+--------------
+December 12, 2025
 Name: Lucas Timmerman
 Changes: Initial Commit
 1. Adding all code from Sayan to initial commit
