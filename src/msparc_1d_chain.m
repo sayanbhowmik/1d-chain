@@ -1,4 +1,11 @@
-function S = msparc_1d_chain()
+function S = msparc_1d_chain(atm_dist, n_atm, kappa, epsilon, XC)
+% function S = msparc_1d_chain()
+if strcmpi(XC,'None')
+    XCswitch = 0; % Enable exchange-correlation functional
+    XC = 'GGA_PBE';
+else
+    XCswitch = 1; % Disable exchange-correlation functional
+end
 format long;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -8,18 +15,64 @@ format long;
 % Start timer
 total_time = tic;
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%          Atomic information             %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% % Equidistant atoms
+% atm_dist = 10; % interatomic distance, user specified
+% S.n_atm = floor(S.L/atm_dist);
+Atoms = (0:n_atm-1)' *atm_dist;
+% S.Atoms = (0:S.n_atm-1)' * atm_dist; % Column vector of positions [0, a, 2a, ...]
+
+% Non-Equidistant atoms - define as you like
+% atm_dist = 10; % interatomic distance, user specified
+% n_atm = 28;
+% S.n_atm = 16;
+% S.n_atm = n_atm;
+% Atoms = (0:n_atm-1)' *atm_dist;
+% S.Atoms = (0:S.n_atm-1)' * atm_dist; % Column vector of positions [0, a, 2a, ...]
+
+% % Force numerical test - perturb any atom
+% S.Atoms(end) = S.Atoms(end) - 0.1;
+% Atoms(end) = Atoms(end) - 0.1;
+
+% Store atomic numbers and b_sigma as a vector - change accordingly
+% S.Z = 2*ones(size(S.Atoms)); 
+Z = 2*ones(size(Atoms));
+%S.b_sigma = 2*ones(size(S.Atoms)); % sigma of pseudocharge gaussian in Lin Lin paper
+b_sigma = 2*ones(size(Atoms)); % sigma of pseudocharge gaussian
+
+% S.Nelectron = sum(S.Z);
+Nelectron = sum(Z); % Total number of electrons
+
+% Find unique pairs of (Z, sigma)
+% [unique_rows, ~, ~] = unique([S.Z(:), S.b_sigma(:)], 'rows', 'stable');
+unique_rows = unique([Z(:), b_sigma(:)], 'rows', 'stable');
+unique_Z = unique_rows(:, 1);
+unique_sigma = unique_rows(:, 2);
+
+% S.n_typ = length(unique_Z);
+% S.unique_Z = unique_Z;
+% S.unique_sigma = unique_sigma;
+n_typ = length(unique_Z);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Basic parameters
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-L = 320; % Lattice size
-N = 3200; % Number of grid points
+% L = 320; % Lattice size
+L = atm_dist * n_atm
+% N = 3200; % Number of grid points
+N = floor(10 * L); % Number of grid points based on lattice size
 dx = L/N; % grid spacing
 SCF_tol = 1e-6; % SCF tolerance
 
 % FDn: half of finite difference order
 FDn = 6;
 
-S = struct('L',L,'N',N,'dx',dx,'SCF_tol',SCF_tol,'FDn',FDn);
+S = struct('L',L,'N',N,'dx',dx,'SCF_tol',SCF_tol,'FDn',FDn,'n_atm',n_atm,'Atoms',Atoms,'Z',Z,'b_sigma',b_sigma,'Nelectron',Nelectron,'n_typ',n_typ,'unique_Z',unique_Z,'unique_sigma',unique_sigma);
 
 % Mixing parameter - Anderson mixing only (no preconditioners)
 % Setting default to 0.3, reduce to 0.1 in case of difficulty
@@ -30,8 +83,10 @@ S.RelaxFlag = 0;
 S.Relax_iter = 1;
 
 % XC: Exchange-correlation functional 
-S.XCswitch = 1; % 0 to switch off, 1 to switch on
-S.XC = 'GGA_PBE';
+% S.XCswitch = 1; % 0 to switch off, 1 to switch on
+S.XCswitch = XCswitch;
+% S.XC = 'GGA_PBE';
+S.XC = XC;
 S.isgradient = 0; % default
 % decomposition of XC, ixc = [iexch,icorr imeta ivdw]
 if strcmp(S.XC, 'LDA_PW')
@@ -56,8 +111,10 @@ elseif strcmp(S.XC, 'GGA_RPBE')
 end
 
 % Yukawa parameter for electrostatics
-S.kappa = 0.01;
-S.epsilon_elec = 10;
+% S.kappa = 0.01;
+S.kappa = kappa;
+% S.epsilon_elec = 10;
+S.epsilon_elec = epsilon;
 
 % % Electronic smearing - specify width
 % S.elec_T_type = 0; % fermi-dirac
@@ -72,40 +129,6 @@ S.kB = (8.6173303e-5)/Cst;
 S.elec_T_type = 0; % fermi-dirac
 S.Temp = 100; % 100 K
 S.bet = 1 / (S.kB*S.Temp);
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%          Atomic information             %
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% % Equidistant atoms
-% atm_dist = 10; % interatomic distance, user specified
-% S.n_atm = floor(S.L/atm_dist);
-% S.Atoms = (0:S.n_atm-1)' * atm_dist; % Column vector of positions [0, a, 2a, ...]
-
-% Non-Equidistant atoms - define as you like
-atm_dist = 10; % interatomic distance, user specified
-S.n_atm = 28;
-S.Atoms = (0:S.n_atm-1)' * atm_dist; % Column vector of positions [0, a, 2a, ...]
-
-% % Force numerical test - perturb any atom
-% S.Atoms(end) = S.Atoms(end) - 0.1;
-
-% Store atomic numbers and b_sigma as a vector - change accordingly
-S.Z = 2*ones(size(S.Atoms)); 
-S.b_sigma = 2*ones(size(S.Atoms)); % sigma of pseudocharge gaussian in Lin Lin paper
-
-S.Nelectron = sum(S.Z);
-
-% Find unique pairs of (Z, sigma)
-[unique_rows, ~, ~] = unique([S.Z(:), S.b_sigma(:)], 'rows', 'stable');
-unique_Z = unique_rows(:, 1);
-unique_sigma = unique_rows(:, 2);
-
-S.n_typ = length(unique_Z);
-S.unique_Z = unique_Z;
-S.unique_sigma = unique_sigma;
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Initialize remaining parameters
 S = initialization(S);
