@@ -77,8 +77,8 @@ S = struct('L',L,'N',N,'dx',dx,'SCF_tol',SCF_tol,'FDn',FDn,...
     'unique_sigma',unique_sigma);
 
 % Mixing parameter - Anderson mixing only (no preconditioners)
-% Setting default to 0.3, reduce to 0.1 in case of difficulty
-S.MixingParameter = 0.1;
+% Setting default to 0.5, reduce in case of difficulty
+S.MixingParameter = 0.5;
 
 % Relax Flag
 S.RelaxFlag = 0;

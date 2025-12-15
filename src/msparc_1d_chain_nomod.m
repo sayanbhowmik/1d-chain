@@ -1,4 +1,4 @@
-function S = msparc_1d_chain()
+function S = msparc_1d_chain_nomod()
 format long;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -22,8 +22,8 @@ FDn = 6;
 S = struct('L',L,'N',N,'dx',dx,'SCF_tol',SCF_tol,'FDn',FDn);
 
 % Mixing parameter - Anderson mixing only (no preconditioners)
-% Setting default to 0.3, reduce to 0.1 in case of difficulty
-S.MixingParameter = 0.1;
+% Setting default to 0.5, reduce in case of difficulty
+S.MixingParameter = 0.5;
 
 % Relax Flag
 S.RelaxFlag = 0;
@@ -84,7 +84,7 @@ S.bet = 1 / (S.kB*S.Temp);
 
 % Non-Equidistant atoms - define as you like
 atm_dist = 11; % interatomic distance, user specified
-S.n_atm = 32;
+S.n_atm = 28;
 S.Atoms = (0:S.n_atm-1)' * atm_dist; % Column vector of positions [0, a, 2a, ...]
 
 % % Force numerical test - perturb any atom

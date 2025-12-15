@@ -52,7 +52,14 @@ end
 f_wavg = reshape(f_wavg,[],S.nspden);
 
 Pf = zeros(S.N,S.nspden);
-Pf(:,1) = amix * f_wavg(:,1);     % mixing param is included in Pf, no preconditioner
+% Pf(:,1) = amix * f_wavg(:,1);     % mixing param is included in Pf, no preconditioner
+if S.MixingPrecond == 1
+	k_TF = S.precond_kerker_kTF;
+	idiemac = S.precond_kerker_thresh;
+	Pf(:,1) = Kerker_Precond(S, f_wavg(:,1), amix, k_TF, idiemac);
+else
+	Pf(:,1) = amix * f_wavg(:,1);     % mixing param is included in Pf, no preconditioner
+end
 
 % Flatten Pf
 Pf = reshape(Pf,[],1);
@@ -73,4 +80,15 @@ S.mixing_hist_fkm1 = f_k;
 S.mixing_hist_xkm1 = x_k;
 S.mixing_hist_xk = x_kp1;
 
+end
+
+%% Kerker Preconditioner
+function Pf = Kerker_Precond(S, f, a, lambda_TF, idiemac)
+Lf = S.Lap_std * f - (lambda_TF*lambda_TF*idiemac)*f;
+B = S.Lap_std - spdiags(lambda_TF*lambda_TF * ones(S.N,1),0,S.N,S.N);
+Pf = B \ Lf;
+if abs(lambda_TF) < 1E-14
+    Pf = Pf - sum(Pf)/S.N;
+end
+Pf = a * Pf;
 end

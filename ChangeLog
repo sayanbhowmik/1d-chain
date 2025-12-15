@@ -4,6 +4,12 @@
 -changes
 
 --------------
+December 15, 2025
+Name: Sayan Bhowmik
+Changes:
+1. Add Kerker preconditioner to accelerate SCF.
+
+--------------
 December 14, 2025
 Name: Sayan Bhowmik
 Changes:

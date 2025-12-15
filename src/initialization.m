@@ -35,6 +35,11 @@ S.MixingParameterSimple = S.MixingParameter;
 S.PulayFrequency = 1;
 S.PulayRestartFlag = 0;
 
+% Preconditiong - Kerker
+S.MixingPrecond = 1; % Default with Kerker preconditioning
+S.precond_kerker_kTF = 1;
+S.precond_kerker_thresh = 0.1;
+
 % Weights for spatial integration over domain
 S.W = ones(S.N,1)*S.dx;
 
