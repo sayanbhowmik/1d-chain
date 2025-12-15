@@ -4,6 +4,16 @@
 -changes
 
 --------------
+December 14, 2025
+Name: Sayan Bhowmik
+Changes:
+1. Fix self energy evaluation and force correction.
+2. Implemented analytical VJ and numerical bJ from VJ like SPARC
+3. Merged b_guessRho and Eself together
+4. Modified pseudochargeDensity_atom calculation
+5. Sync Lucas commits
+
+--------------
 December 13, 2025
 Name: Lucas Timmerman
 Changes:

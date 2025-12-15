@@ -1,5 +1,4 @@
 function S = msparc_1d_chain(atm_dist, n_atm, kappa, epsilon, XC)
-% function S = msparc_1d_chain()
 if strcmpi(XC,'None')
     XCswitch = 0; % Enable exchange-correlation functional
     XC = 'GGA_PBE';
@@ -63,7 +62,7 @@ n_typ = length(unique_Z);
 % Basic parameters
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % L = 320; % Lattice size
-L = atm_dist * n_atm
+L = atm_dist * n_atm;
 % N = 3200; % Number of grid points
 N = floor(10 * L); % Number of grid points based on lattice size
 dx = L/N; % grid spacing
@@ -72,7 +71,10 @@ SCF_tol = 1e-6; % SCF tolerance
 % FDn: half of finite difference order
 FDn = 6;
 
-S = struct('L',L,'N',N,'dx',dx,'SCF_tol',SCF_tol,'FDn',FDn,'n_atm',n_atm,'Atoms',Atoms,'Z',Z,'b_sigma',b_sigma,'Nelectron',Nelectron,'n_typ',n_typ,'unique_Z',unique_Z,'unique_sigma',unique_sigma);
+S = struct('L',L,'N',N,'dx',dx,'SCF_tol',SCF_tol,'FDn',FDn,...
+    'n_atm',n_atm,'Atoms',Atoms,'Z',Z,'b_sigma',b_sigma,...
+    'Nelectron',Nelectron,'n_typ',n_typ,'unique_Z',unique_Z,...
+    'unique_sigma',unique_sigma);
 
 % Mixing parameter - Anderson mixing only (no preconditioners)
 % Setting default to 0.3, reduce to 0.1 in case of difficulty

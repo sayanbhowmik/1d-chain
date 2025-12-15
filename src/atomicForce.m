@@ -11,12 +11,20 @@ tic_locforces = tic;
 force_local = zeros(S.n_atm,1);
 force_self = zeros(S.n_atm,1);
 
-% Calculate Yukawa Kernel
-Kxy = yukawa_kernel(S.x,S.x,S);
+% % Calculate Yukawa Kernel
+% Kxy = yukawa_kernel(S.x,S.x,S);
+
+% Pseudopotential (local)
+VJ_mat = zeros(S.N,S.n_typ);
+for i = 1 : S.n_typ
+    VJ_mat(:,i) = calculate_VJ(S.x,S,i);
+end
+
+Dphi_x = S.grad*(S.phi); % gradient of phi
 
 for JJ_a = 1 : S.n_atm
     % Initialize b_j and db_j/dx on full grid size
-    bJ_full = zeros(S.N,1);
+    % bJ_full = zeros(S.N,1);
     dbJ_full = zeros(S.N,1);
 
     % Atom position of atom JJ_a
@@ -51,32 +59,54 @@ for JJ_a = 1 : S.n_atm
         dd = bsxfun(@minus,xx,x0_i)';
         % dd = sqrt(dd.^2);
 
-        % Pseudocharge density calculation
-		II = 1+S.FDn : size(dd,1)-S.FDn;
+        % Pseudopotential at grid points through interpolation
+        idx_type = find(S.unique_Z == S.Z(JJ_a));
+		V_PS = interp1(S.x,VJ_mat(:,idx_type),abs(dd),'spline');
 
-        bJ = pseudochargeDensity_atom(dd,II,S.Z(JJ_a),S.b_sigma(JJ_a));
-        dbJ = -(dd/S.b_sigma(JJ_a)^2).*bJ;
+        % Pseudocharge density calculation - numerical bJ
+        II = 1+S.FDn : size(dd,1)-S.FDn;
+        bJ = pseudochargeDensity_atom(V_PS,II,S);
 
-        II_act = ii_s:ii_e;
+        dVJ_x = dpseudopot(V_PS,II,S);
 
-        bJ_full(II_act) = bJ_full(II_act) + bJ(II);
-        dbJ_full(II_act) = dbJ_full(II_act) + dbJ(II);
+        II_rb = ii_s : ii_e;
+
+        fl_x = -(sum(S.W(II_rb).*bJ(II).*(Dphi_x(II_rb) - dVJ_x(II))));
+        force_local(JJ_a,1) = force_local(JJ_a,1) + fl_x;
+        force_self(JJ_a,1) = force_self(JJ_a,1) -(sum(S.W(II_rb).*bJ(II).*(-dVJ_x(II))));
+
+        % % Pseudocharge density calculation - analytical
+		% II = 1+S.FDn : size(dd,1)-S.FDn;
+        % 
+        % bJ = pseudochargeDensity_atom(dd,II,S.Z(JJ_a),S.b_sigma(JJ_a));
+        % dbJ = -(dd/S.b_sigma(JJ_a)^2).*bJ;
+        % 
+        % II_act = ii_s:ii_e;
+        % 
+        % % bJ_full(II_act) = bJ_full(II_act) + bJ(II);
+        % dbJ_full(II_act) = dbJ_full(II_act) + dbJ(II);
+        % 
+        % phi_bj = analytic_yukawa_solution(dd, S, JJ_a);
+        % fl_x2 = -sum(S.W(II_act).*dbJ(II).*phi_bj(II));
+        % 
+        % force_local(JJ_a,1) = force_local(JJ_a,1) + fl_x2;
+        % force_self(JJ_a,1) = force_self(JJ_a,1) + fl_x2;
     end
-    fl_x = sum(S.W.*dbJ_full.*S.phi);
-    force_local(JJ_a,1) = force_local(JJ_a,1) + fl_x;
+    % fl_x = sum(S.W.*dbJ_full.*S.phi);
+    % force_local(JJ_a,1) = force_local(JJ_a,1) + fl_x;
 
     % phi_self = Kxy*(S.W.*bJ_full); % Yukawa kernel way
 
-    % Poisson way
-    RHS = (4*pi/S.epsilon_elec)*(bJ_full);
-    A = -S.Lap_std + (S.kappa^2 * speye(S.N));
-    
-    phi_self = A \ RHS;
-    
-    fl_x2 = -sum(S.W.*dbJ_full.*phi_self);
-
-    force_local(JJ_a,1) = force_local(JJ_a,1) + fl_x2;
-    force_self(JJ_a,1) = force_self(JJ_a,1) + fl_x2;
+    % % Poisson way
+    % RHS = (4*pi/S.epsilon_elec)*(bJ_full);
+    % A = -S.Lap_std + (S.kappa^2 * speye(S.N));
+    % 
+    % phi_self = A \ RHS;
+    % 
+    % fl_x2 = -sum(S.W.*dbJ_full.*phi_self);
+    % 
+    % force_local(JJ_a,1) = force_local(JJ_a,1) + fl_x2;
+    % force_self(JJ_a,1) = force_self(JJ_a,1) + fl_x2;
 end
 fprintf(' local force calculation: %.3f s\n', toc(tic_locforces));
 
@@ -84,6 +114,13 @@ force = force_local;
 % fprintf("%0.14f\n",force_self); % test - self force should be 0 if not
 % for eggbox
 
+end
+
+function [DX_x] = dpseudopot(X,II,S)
+DX_x = zeros(size(X));
+for p = 1:S.FDn
+    DX_x(II) = DX_x(II) + S.w1(p+1)/S.dx*(X(II+p)-X(II-p));
+end
 end
 
 % function K = yukawa_kernel(x, y, S)
@@ -103,21 +140,21 @@ end
 % K = prefactor * exp(-S.kappa * dist_matrix);
 % end
 
-function K = yukawa_kernel(x,y,S)
-% Infinite periodic case using cosh and sinh
-
-% Takes two vectors x and y and returns kernel K(x,y)
-% Distance matrix with Minimum Image Convention
-x = x(:);
-y = y(:);
-raw_dist = abs(x - y');
-dist_matrix = min(raw_dist, S.L - raw_dist);
-
-% Periodic Kernel Formula (Cosh)
-% This sums infinite periodic images exactly
-numerator = cosh(S.kappa * (0.5 * S.L - dist_matrix));
-denominator = 2 * S.kappa * sinh(S.kappa * S.L / 2);
-
-prefactor = 4 * pi / S.epsilon_elec; % Note prefactor change for this form
-K = prefactor * (numerator / denominator);
-end
+% function K = yukawa_kernel(x,y,S)
+% % Infinite periodic case using cosh and sinh
+% 
+% % Takes two vectors x and y and returns kernel K(x,y)
+% % Distance matrix with Minimum Image Convention
+% x = x(:);
+% y = y(:);
+% raw_dist = abs(x - y');
+% dist_matrix = min(raw_dist, S.L - raw_dist);
+% 
+% % Periodic Kernel Formula (Cosh)
+% % This sums infinite periodic images exactly
+% numerator = cosh(S.kappa * (0.5 * S.L - dist_matrix));
+% denominator = 2 * S.kappa * sinh(S.kappa * S.L / 2);
+% 
+% prefactor = 4 * pi / S.epsilon_elec; % Note prefactor change for this form
+% K = prefactor * (numerator / denominator);
+% end

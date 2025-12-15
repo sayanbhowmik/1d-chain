@@ -11,10 +11,10 @@ S = check_atomlocation(S);
 % Pseudocharge
 t_calc_b = tic;
 
-S = calculate_b_guessRho(S);
+S = calculate_b_guessRho_eself(S);
 
-% Self energy
-S = calculate_Eself(S);
+% % Self energy
+% S = calculate_Eself(S);
 
 fprintf(' Time for b calculation: %.3f seconds.\n',toc(t_calc_b));
 

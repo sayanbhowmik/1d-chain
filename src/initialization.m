@@ -1,14 +1,5 @@
 function S = initialization(S)
 S.x = (0:S.N-1)' * S.dx;  % Grid vector
-%--------------------------------------------------------------------------
-% We are currently using pseudocharge radii implementation - can be
-% switched off if needed later.
-%--------------------------------------------------------------------------
-% pseudocharge tol
-S.pseudocharge_tol = 1e-14;
-
-% Calculate rb
-S = Calculate_rb(S);
 
 % SCF
 S.NetCharge = 0;
@@ -78,6 +69,16 @@ S.w1 = w1;
 S = gradIndicesValues(S);
 S.grad = Gradient(S);
 
+%--------------------------------------------------------------------------
+% We are currently using pseudocharge radii implementation - can be
+% switched off if needed later.
+%--------------------------------------------------------------------------
+% pseudocharge tol
+S.pseudocharge_tol = 0.01*S.SCF_tol;
+
+% Calculate rb
+S = Calculate_rb(S);
+
 end
 
 % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -99,13 +100,24 @@ dd_temp = bsxfun(@minus,xx_temp,pos_atm_x)';
 W_temp = ones(Nx,1)*S.dx;
 W_temp(1) = W_temp(1)*0.5; W_temp(Nx) = W_temp(Nx)*0.5;
 
+% Pseudopotential (local)
+VJ_mat = zeros(S.N,S.n_typ);
+for i = 1 : S.n_typ
+    VJ_mat(:,i) = calculate_VJ(S.x,S,i);
+end
+
 % Initialize rb_x
 S.rb_x = zeros(S.n_typ,1);
 for ityp = 1:S.n_typ
     II_temp = 1+S.FDn : size(dd_temp,1)-S.FDn;
+    
+    % % Analytical b
+    % b_temp = pseudochargeDensity_atom(dd_temp,II_temp,S.unique_Z(ityp),S.unique_sigma(ityp));
 
-    % b_temp = pseudochargeDensity_atom(dd_temp,II_temp,S);
-    b_temp = pseudochargeDensity_atom(dd_temp,II_temp,S.unique_Z(ityp),S.unique_sigma(ityp));
+    % Numerical b
+    % Pseudopotential at grid points through interpolation
+    V_PS = interp1(S.x,VJ_mat(:,ityp),abs(dd_temp),'spline');
+    b_temp = pseudochargeDensity_atom(V_PS,II_temp,S);
 
     rb_x = S.unique_sigma(ityp);
     rb_x = ceil(rb_x/S.dx-1e-12)*S.dx;
