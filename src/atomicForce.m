@@ -22,6 +22,7 @@ end
 
 Dphi_x = S.grad*(S.phi); % gradient of phi
 
+unique_rows = [S.unique_Z, S.unique_sigma];
 for JJ_a = 1 : S.n_atm
     % Initialize b_j and db_j/dx on full grid size
     % bJ_full = zeros(S.N,1);
@@ -31,7 +32,9 @@ for JJ_a = 1 : S.n_atm
     x0 = S.Atoms(JJ_a,1);
 
     % Find index of rb_x for the atom type
-    idx_type = find(S.unique_Z == S.Z(JJ_a));
+    % idx_type = find(S.unique_Z == S.Z(JJ_a));
+    row = [S.Z(JJ_a), S.b_sigma(JJ_a)];
+    idx_type = find( all(unique_rows == row, 2));
 
     % Periodic boundary
     n_image_xl = floor((S.Atoms(JJ_a,1) + S.rb_x(idx_type))/S.L);
@@ -60,7 +63,7 @@ for JJ_a = 1 : S.n_atm
         % dd = sqrt(dd.^2);
 
         % Pseudopotential at grid points through interpolation
-        idx_type = find(S.unique_Z == S.Z(JJ_a));
+        % idx_type = find(S.unique_Z == S.Z(JJ_a));
 		V_PS = interp1(S.x,VJ_mat(:,idx_type),abs(dd),'spline');
 
         % Pseudocharge density calculation - numerical bJ

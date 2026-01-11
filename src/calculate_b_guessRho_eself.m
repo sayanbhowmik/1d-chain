@@ -11,18 +11,22 @@ VJ_mat = zeros(S.N,S.n_typ);
 for i = 1 : S.n_typ
     VJ_mat(:,i) = calculate_VJ(S.x,S,i);
 end
+fprintf("VJ_mat %d, %d\n", size(VJ_mat))
 
 %--------------------------------------------------------------------------
 % We are currently using pseudocharge radii implementation - can be
 % switched off if needed later
 %--------------------------------------------------------------------------
 % Pseudocharge generation
+unique_rows = [S.unique_Z, S.unique_sigma];
 for JJ_a = 1:S.n_atm
     % Atom position of atom JJ_a
     x0 = S.Atoms(JJ_a,1);
 
     % Find index of rb_x for the atom type
-    idx_type = find(S.unique_Z == S.Z(JJ_a));
+    % idx_type = find(S.unique_Z == S.Z(JJ_a));
+    row = [S.Z(JJ_a), S.b_sigma(JJ_a)];
+    idx_type = find( all(unique_rows == row, 2));
 
     % Periodic boundary
     n_image_xl = floor((S.Atoms(JJ_a,1) + S.rb_x(idx_type))/S.L);
@@ -51,12 +55,18 @@ for JJ_a = 1:S.n_atm
         % dd = sqrt(dd.^2);
 
         % Pseudopotential at grid points through interpolation
-        idx_type = find(S.unique_Z == S.Z(JJ_a));
+        % idx_type = find(S.unique_Z == S.Z(JJ_a));
         V_PS = interp1(S.x,VJ_mat(:,idx_type),abs(dd),'spline');
+        fprintf("V_PS %d, %d\n", size(V_PS))
 
         % Pseudocharge density calculation - numerical bJ
         II = 1+S.FDn : size(dd,1)-S.FDn;
+        fprintf("II %d, %d\t", size(II))
         bJ = pseudochargeDensity_atom(V_PS,II,S);
+        fprintf("bj %d, %d\t", size(bJ))
+        fprintf("S.b %d, %d\t", size(S.b))
+        fprintf("ii_s %d\t", ii_s)
+        fprintf("ii_e %d\n", ii_e)
         S.b(ii_s:ii_e) = S.b(ii_s:ii_e) + bJ(II);
 
         % Eself
