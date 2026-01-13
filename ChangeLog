@@ -4,6 +4,14 @@
 -changes
 
 --------------
+January 13, 2026
+Name: Lucas Timmerman
+Changes: atomicForce.m, calculate_b_guessRho_eself.m, initialization.m, xc/exx/exx_initialization.m
+1. Updated how unique rows are found to account for multiple sigma per Z or vice versa
+2. Modified the rb_x calculation to be fixed at 5X sigma to avoid convergence issues
+3. Modified how the fft is set up for HSE to work with even and odd number of grid points
+   
+--------------
 December 20, 2025
 Name: Sayan Bhowmik
 Changes: xc/exx/, evaluateTotalEnergy.m, exchangeCorrelationPotential.m,

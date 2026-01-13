@@ -54,7 +54,7 @@ function S = const_for_FFT(S)
     S.num_shift = 1;
 
     % Vectorized G^2
-    k_indices = [0:floor(N/2), -floor(N/2)+1:-1];
+    k_indices = [0:floor(N/2), -floor(N/2)+1-mod(N,2):-1];
     G_squared = (k_indices * 2 * pi / L).^2;
     
     % The EXACT Hybrid Kernel

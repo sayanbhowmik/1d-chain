@@ -96,52 +96,85 @@ function S = Calculate_rb(S)
 pos_atm_x = 0; % atom location in x-direction
 % rb_up_x = (S.dx < 1.5) * (10+10*S.dx) + (S.dx >=1.5) * (20*S.dx-9.5);
 rb_up_x = 5*((S.dx < 1.5) * (10+10*S.dx) + (S.dx >=1.5) * (20*S.dx-9.5));
+% fprintf("rb_up_x: %f\n", rb_up_x);
 
 ii_s_temp = -ceil(rb_up_x/S.dx);
 ii_e_temp = ceil(rb_up_x/S.dx);
+% fprintf("ii_s_temp: %d\nii_e_temp: %d\n", ii_s_temp, ii_e_temp);
 
+% domain from negative to positive maximum rb_x, taken from rb_up_x
 xx_temp = pos_atm_x + (ii_s_temp-S.FDn:ii_e_temp+S.FDn)*S.dx;
 Nx = (ii_e_temp-ii_s_temp)+1;
 
+% center points at atom position, redundant (transposed)
 dd_temp = bsxfun(@minus,xx_temp,pos_atm_x)';
+% fprintf("xx_temp: %d,%d\ndd_temp: %d,%d\n", size(xx_temp), size(dd_temp))
+% diff = xx_temp' - dd_temp;
+% figure
+% plot(diff)
 % dd_temp = sqrt(dd_temp.^2);
 
 % Dirichlet integration weights
 W_temp = ones(Nx,1)*S.dx;
 W_temp(1) = W_temp(1)*0.5; W_temp(Nx) = W_temp(Nx)*0.5;
+% fprintf("Weights: \n");
+% disp(W_temp)
 
-% Pseudopotential (local)
+% Pseudopotential (local), evaluated as solution to integral in https://arxiv.org/pdf/1206.2225 eq 6.2
+% figure
+% hold on
 VJ_mat = zeros(S.N,S.n_typ);
 for i = 1 : S.n_typ
     VJ_mat(:,i) = calculate_VJ(S.x,S,i);
+    % plot(S.x, VJ_mat(:,i))
 end
+% legend('Atom 1', 'Atom 2')
 
 % Initialize rb_x
 S.rb_x = zeros(S.n_typ,1);
 for ityp = 1:S.n_typ
+    % Indices maybe of the FD nodes not accounting for periodic/dirichlet nodes?
     II_temp = 1+S.FDn : size(dd_temp,1)-S.FDn;
-    
     % % Analytical b
     % b_temp = pseudochargeDensity_atom(dd_temp,II_temp,S.unique_Z(ityp),S.unique_sigma(ityp));
 
     % Numerical b
-    % Pseudopotential at grid points through interpolation
+    % Pseudopotential at grid points from negative to positive rb_x
+    % max/min. This is likely an issue if the potential hasn't decayed to 0
+    % within the box
     V_PS = interp1(S.x,VJ_mat(:,ityp),abs(dd_temp),'spline');
+    % if ityp == 1
+    %     figure
+    %     hold on
+    %     plot(abs(dd_temp), V_PS)
+    %     plot(S.x, VJ_mat(:,ityp))
+    %     legend('Interpolated', 'Raw')
+    %     hold off
+    % end
     b_temp = pseudochargeDensity_atom(V_PS,II_temp,S);
+    % figure
+    % plot(abs(dd_temp), b_temp)
 
-    rb_x = S.unique_sigma(ityp);
-    rb_x = ceil(rb_x/S.dx-1e-12)*S.dx;
-    err_rb = 100;
-    count = 1;
-    fprintf(' Finding rb ...\n');
-    while (err_rb > S.pseudocharge_tol && count <= 1000 && rb_x <= rb_up_x)
-        rb_x = rb_x + S.dx;
-        ii_rb = -1*ii_s_temp+S.FDn-floor(rb_x/S.dx)+1:-1*ii_s_temp+S.FDn+floor(rb_x/S.dx)+1;
-        err_rb = abs( sum(W_temp(ii_rb-S.FDn).*b_temp(ii_rb)) + S.unique_Z(ityp) );
-        fprintf(' rb = {%0.3f}, int_b = %0.15f, err_rb = %.3e\n',...
-            rb_x,sum(W_temp(ii_rb-S.FDn).*b_temp(ii_rb)), err_rb);
-        count = count + 1;
-    end
+    % 5 sigma should always be sufficient if the cell is large enough to observe pseudopotential decay (cell 3x the sigma should be sufficient, but can sometimes get away with less (2.5x))
+    rb_x = S.unique_sigma(ityp) * 5;
+    % rb_x = ceil(rb_x/S.dx-1e-12)*S.dx;
+    % err_rb = 100;
+    % count = 1;
+    % fprintf(' Finding rb ...\n');
+    fprintf('Checking rb ...\n');
+    % while (err_rb > S.pseudocharge_tol && count <= 1000 && rb_x <= rb_up_x)
+    % while (count <= 1000 && rb_x <= rb_up_x)
+    %     rb_x = rb_x + S.dx;
+    %     ii_rb = -1*ii_s_temp+S.FDn-floor(rb_x/S.dx)+1:-1*ii_s_temp+S.FDn+floor(rb_x/S.dx)+1;
+    %     err_rb = abs( sum(W_temp(ii_rb-S.FDn).*b_temp(ii_rb)) + S.unique_Z(ityp) );
+    %     fprintf(' rb = {%0.3f}, int_b = %0.15f, err_rb = %.3e\n',...
+    %         rb_x,sum(W_temp(ii_rb-S.FDn).*b_temp(ii_rb)), err_rb);
+    %     count = count + 1;
+    % end
+    ii_rb = -1*ii_s_temp+S.FDn-floor(rb_x/S.dx)+1:-1*ii_s_temp+S.FDn+floor(rb_x/S.dx)+1;
+    err_rb = abs( sum(W_temp(ii_rb-S.FDn).*b_temp(ii_rb)) + S.unique_Z(ityp) );
+    fprintf(' rb = {%0.3f}, int_b = %0.15f, err_rb = %.3e\n',...
+        rb_x,sum(W_temp(ii_rb-S.FDn).*b_temp(ii_rb)), err_rb);
     assert(rb_x<=rb_up_x,'Need to increase upper bound for rb!');
     S.rb_x(ityp) = rb_x;
     fprintf('rb = {%.3f} for Type: %d\n',S.rb_x(ityp),ityp);
